@@ -35,7 +35,7 @@ client.connect()
 
 // MongoDB Collections
 const db = client.db("recipehub");
-const usersCollection = db.collection("users");
+const usersCollection = db.collection("user");
 const recipesCollection = db.collection("recipes");
 const favoritesCollection = db.collection("favorites");
 const reportsCollection = db.collection("reports");
@@ -163,11 +163,28 @@ app.get('/api/users/me', verifyToken, async (req, res) => {
 app.patch('/api/users/me', verifyToken, async (req, res) => {
     try {
         const { name, image } = req.body;
+        const updateData = {};
+        if (name) updateData.name = name;
+        if (image) updateData.image = image;
+        updateData.updatedAt = new Date();
+
+        if (Object.keys(updateData).length === 0) {
+            return res.status(400).send({ message: 'No fields to update' });
+        }
+
         const result = await usersCollection.updateOne(
             { email: req.user.email },
-            { $set: { name, image, updatedAt: new Date() } }
+            { $set: updateData }
         );
-        res.send(result);
+
+        if (result.matchedCount === 0) {
+            return res.status(404).send({ message: 'User not found' });
+        }
+
+        // Fetch updated user and remove password
+        const updatedUser = await usersCollection.findOne({ email: req.user.email });
+        delete updatedUser.password;
+        res.send(updatedUser);
     } catch (err) {
         res.status(500).send({ message: err.message });
     }
