@@ -484,12 +484,20 @@ app.post('/api/reports', verifyToken, async (req, res) => {
 });
 
 // GET all reports (admin)
+// GET all reports (admin) – with pagination & status filter
 app.get('/api/reports', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const query = {};
-        if (req.query.status) query.status = req.query.status;
+        const page = parseInt(req.query.page) || 1;
+        const perPage = parseInt(req.query.perPage) || 10;
+        const skip = (page - 1) * perPage;
 
-        const reports = await reportsCollection.find(query).sort({ createdAt: -1 }).toArray();
+        if (req.query.status && req.query.status !== 'all') {
+            query.status = req.query.status;
+        }
+
+        const total = await reportsCollection.countDocuments(query);
+        const reports = await reportsCollection.find(query).sort({ createdAt: -1 }).skip(skip).limit(perPage).toArray();
 
         // Populate recipe info
         const populated = await Promise.all(reports.map(async (report) => {
@@ -501,7 +509,7 @@ app.get('/api/reports', verifyToken, verifyAdmin, async (req, res) => {
             }
         }));
 
-        res.send(populated);
+        res.send({ total, reports: populated });
     } catch (err) {
         res.status(500).send({ message: err.message });
     }
