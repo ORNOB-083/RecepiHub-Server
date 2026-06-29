@@ -296,8 +296,10 @@ app.get('/api/recipes', async (req, res) => {
             ];
         }
 
+        // ─── Public view: only approved & not hidden ───
         if (!req.query.authorEmail && !req.query.admin) {
             query.isHidden = { $ne: true };
+            query.status = 'approved';
         }
 
         let sortObj = { createdAt: -1 };
